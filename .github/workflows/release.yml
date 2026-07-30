@@ -9,7 +9,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -27,7 +27,7 @@ jobs:
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath pocket-ledger-windows.zip
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-build
           path: pocket-ledger-windows.zip
@@ -35,11 +35,11 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -54,7 +54,7 @@ jobs:
       - run: flutter build apk --release
 
       - name: Upload Android artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-build
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -66,12 +66,12 @@ jobs:
       contents: write
     steps:
       - name: Download Windows build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: windows-build
 
       - name: Download Android build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: android-build
 
