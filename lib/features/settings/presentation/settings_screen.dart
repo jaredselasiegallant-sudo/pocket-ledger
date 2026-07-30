@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:pocket_ledger/core/theme/colors/app_colors.dart';
 import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/utils/export_engine.dart';
+import 'package:pocket_ledger/core/providers.dart';
 import 'package:pocket_ledger/features/auto_capture/presentation/auto_capture_confirm_dialog.dart';
 import 'package:pocket_ledger/features/settings/presentation/about_screen.dart';
 import 'package:pocket_ledger/features/settings/presentation/quick_expense_modal.dart';
 import 'package:pocket_ledger/main.dart' show themeModeProvider;
 
-/// Settings Screen - Stitch Expressive
+/// Settings Screen
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -31,7 +33,6 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ─── Auto-Capture Section ───
           _SettingsSection(
             title: 'Auto-Capture',
             children: [
@@ -39,9 +40,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.notifications_active_rounded,
                 title: 'Notification Listener',
                 subtitle: 'Auto-detect MoMo & bank alerts',
-                onTap: () {
-                  _showAutoCaptureDemo(context);
-                },
+                onTap: () => _showAutoCaptureDemo(context),
               ),
               _SettingsTile(
                 icon: Icons.sms_rounded,
@@ -65,7 +64,6 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // ─── Appearance Section ───
           _SettingsSection(
             title: 'Appearance',
             children: [
@@ -75,35 +73,24 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: themeMode == ThemeMode.dark ? 'On' : 'Off',
                 value: themeMode == ThemeMode.dark,
                 onChanged: (val) {
-                  ref.read(themeModeProvider.notifier).state =
-                      val ? ThemeMode.dark : ThemeMode.light;
+                  ref.read(themeModeProvider.notifier).setTheme(
+                        val ? ThemeMode.dark : ThemeMode.light,
+                      );
                 },
-              ),
-              _SettingsTile(
-                icon: Icons.palette_rounded,
-                title: 'Accent Color',
-                subtitle: 'Ghana Green',
-                onTap: () {},
               ),
             ],
           ),
 
           const SizedBox(height: 20),
 
-          // ─── Currency Section ───
           _SettingsSection(
             title: 'Currency',
             children: [
               _SettingsTile(
                 icon: Icons.attach_money_rounded,
                 title: 'Default Currency',
-                subtitle: '${AppConstants.defaultCurrencyName} (${AppConstants.defaultCurrencyCode})',
-                onTap: () {},
-              ),
-              _SettingsTile(
-                icon: Icons.currency_exchange_rounded,
-                title: 'Offline Exchange Rates',
-                subtitle: 'USD, EUR, GBP, NGN, KES, ZAR',
+                subtitle:
+                    '${AppConstants.defaultCurrencyName} (${AppConstants.defaultCurrencyCode})',
                 onTap: () {},
               ),
             ],
@@ -111,7 +98,6 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // ─── Data & Export Section ───
           _SettingsSection(
             title: 'Data & Export',
             children: [
@@ -119,122 +105,27 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.file_download_rounded,
                 title: 'Export as Excel',
                 subtitle: 'Download .xlsx spreadsheet',
-                onTap: () async {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Exporting to Excel...'),
-                      backgroundColor: colorScheme.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                  try {
-                    final path = await ExportEngine.exportToExcel(transactions: [
-                      {'date': '2026-07-30', 'title': 'MTN MoMo Transfer', 'type': 'DEBIT', 'category': 'Transport', 'amount': -250.0, 'provider': 'MTN MoMo', 'reference': '', 'notes': ''},
-                      {'date': '2026-07-30', 'title': 'Salary Credit', 'type': 'CREDIT', 'category': 'Salary', 'amount': 5500.0, 'provider': 'GCB Bank', 'reference': '', 'notes': ''},
-                    ]);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Exported to: $path'),
-                          backgroundColor: AppColors.income,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Export failed: $e'),
-                          backgroundColor: AppColors.expense,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                },
+                onTap: () => _exportExcel(context, ref),
               ),
               _SettingsTile(
                 icon: Icons.picture_as_pdf_rounded,
                 title: 'Export as PDF',
                 subtitle: 'Download formatted statement',
-                onTap: () async {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Generating PDF statement...'),
-                      backgroundColor: colorScheme.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                  try {
-                    final path = await ExportEngine.exportToPdf(
-                      transactions: [
-                        {'date': '2026-07-30', 'title': 'MTN MoMo Transfer', 'type': 'debit', 'amount': -250.0},
-                        {'date': '2026-07-30', 'title': 'Salary Credit', 'type': 'credit', 'amount': 5500.0},
-                      ],
-                      totalIncome: 5500.0,
-                      totalExpenses: 250.0,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Exported to: $path'),
-                          backgroundColor: AppColors.income,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Export failed: $e'),
-                          backgroundColor: AppColors.expense,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                },
-              ),
-              _SettingsTile(
-                icon: Icons.backup_rounded,
-                title: 'Backup & Restore',
-                subtitle: 'Local backup to device storage',
-                onTap: () {},
+                onTap: () => _exportPdf(context, ref),
               ),
             ],
           ),
 
           const SizedBox(height: 20),
 
-          // ─── Accounts Section ───
-          _SettingsSection(
-            title: 'Accounts',
-            children: [
-              _SettingsTile(
-                icon: Icons.account_balance_rounded,
-                title: 'Manage Accounts',
-                subtitle: 'MTN MoMo, GCB, Telecel, etc.',
-                onTap: () {},
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // ─── About Section ───
           _SettingsSection(
             title: 'About',
             children: [
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: AppConstants.appName,
-                subtitle: 'Version ${AppConstants.appVersion} • Made in Ghana',
+                subtitle:
+                    'Version ${AppConstants.appVersion} • Made in Ghana',
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -242,12 +133,6 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                   );
                 },
-              ),
-              _SettingsTile(
-                icon: Icons.privacy_tip_rounded,
-                title: 'Privacy',
-                subtitle: 'All data stays on your device',
-                onTap: () {},
               ),
             ],
           ),
@@ -267,6 +152,100 @@ class SettingsScreen extends ConsumerWidget {
       recipient: 'John Mensah',
       reference: 'MOMO123456789',
     );
+  }
+
+  Future<void> _exportExcel(BuildContext context, WidgetRef ref) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Exporting to Excel...'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    try {
+      final summary = ref.read(currentMonthSummaryProvider).valueOrNull;
+      final txns = summary?.transactions ?? [];
+      final txData = txns.map((t) => {
+        'date': DateFormat('yyyy-MM-dd').format(t.transactionDate),
+        'title': t.title,
+        'type': t.type.toUpperCase(),
+        'category': t.category,
+        'amount': t.amount,
+        'provider': t.provider ?? '',
+        'reference': t.reference ?? '',
+        'notes': t.description ?? '',
+      }).toList();
+
+      final path = await ExportEngine.exportToExcel(transactions: txData);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exported to: $path'),
+            backgroundColor: AppColors.income,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportPdf(BuildContext context, WidgetRef ref) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Generating PDF statement...'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    try {
+      final summary = ref.read(currentMonthSummaryProvider).valueOrNull;
+      final txns = summary?.transactions ?? [];
+      final txData = txns.map((t) => {
+        'date': DateFormat('yyyy-MM-dd').format(t.transactionDate),
+        'title': t.title,
+        'type': t.type,
+        'amount': t.amount,
+      }).toList();
+
+      final path = await ExportEngine.exportToPdf(
+        transactions: txData,
+        totalIncome: summary?.income ?? 0,
+        totalExpenses: summary?.expenses ?? 0,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exported to: $path'),
+            backgroundColor: AppColors.income,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -388,7 +388,7 @@ class AboutScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '© 2024 PocketLedger',
+                    '© 2026 PocketLedger',
                     style: AppTypography.labelSmall.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),

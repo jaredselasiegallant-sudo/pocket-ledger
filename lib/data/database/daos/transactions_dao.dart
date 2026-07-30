@@ -61,40 +61,38 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
 
   /// Get total income (credits) for a period
   Future<double> getTotalIncome(DateTime start, DateTime end) async {
-    final query = selectOnly(transactions).join([
-      innerJoin(transactions, transactions.id.equalsExp(transactions.id)),
-    ])
-      ..where(transactions.type.equals('credit') &
-          transactions.isDeleted.equals(false) &
-          transactions.transactionDate.isBetweenValues(start, end));
+    final result = await (selectOnly(transactions)
+          ..where(transactions.type.equals('credit') &
+              transactions.isDeleted.equals(false) &
+              transactions.transactionDate.isBetweenValues(start, end))
+          ..addColumns([transactions.amount.sum()]))
+        .get();
 
-    final result = await query.get();
     return result.fold<double>(0, (sum, row) {
-      final amount = row.read(transactions.amount);
-      return sum + (amount ?? 0);
+      final amount = row.read(transactions.amount.sum());
+      return sum + (amount ?? 0).toDouble();
     });
   }
 
   /// Get total expenses (debits) for a period
   Future<double> getTotalExpenses(DateTime start, DateTime end) async {
-    final query = selectOnly(transactions).join([
-      innerJoin(transactions, transactions.id.equalsExp(transactions.id)),
-    ])
-      ..where(transactions.type.equals('debit') &
-          transactions.isDeleted.equals(false) &
-          transactions.transactionDate.isBetweenValues(start, end));
+    final result = await (selectOnly(transactions)
+          ..where(transactions.type.equals('debit') &
+              transactions.isDeleted.equals(false) &
+              transactions.transactionDate.isBetweenValues(start, end))
+          ..addColumns([transactions.amount.sum()]))
+        .get();
 
-    final result = await query.get();
     return result.fold<double>(0, (sum, row) {
-      final amount = row.read(transactions.amount);
-      return sum + (amount ?? 0);
+      final amount = row.read(transactions.amount.sum());
+      return sum + (amount ?? 0).toDouble();
     });
   }
 
   /// Get spending by category for a period
   Future<List<MapEntry<String, double>>> getSpendingByCategory(
       DateTime start, DateTime end) async {
-    final query = selectOnly(transactions).join([])
+    final query = selectOnly(transactions)
       ..where(transactions.type.equals('debit') &
           transactions.isDeleted.equals(false) &
           transactions.transactionDate.isBetweenValues(start, end))

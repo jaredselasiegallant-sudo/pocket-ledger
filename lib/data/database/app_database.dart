@@ -31,7 +31,14 @@ class AppDatabase extends _$AppDatabase {
         await _seedDefaultCategories();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Future migrations go here
+        // Add migration steps here when bumping schemaVersion
+        // Example:
+        // if (from < 2) {
+        //   await m.addColumn(transactions, transactions.newColumn);
+        // }
+      },
+      beforeOpen: (details) async {
+        await customStatement('PRAGMA foreign_keys = ON');
       },
     );
   }

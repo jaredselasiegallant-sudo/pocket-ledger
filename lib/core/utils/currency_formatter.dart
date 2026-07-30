@@ -47,7 +47,6 @@ class CurrencyFormatter {
     final cleaned = text
         .replaceAll(AppConstants.defaultCurrencySymbol, '')
         .replaceAll('GHS', '')
-        .replaceAll('GH₵', '')
         .replaceAll(',', '')
         .trim();
     return double.tryParse(cleaned);

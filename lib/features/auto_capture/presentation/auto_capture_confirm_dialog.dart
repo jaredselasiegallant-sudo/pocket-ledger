@@ -294,10 +294,10 @@ class _AutoCaptureConfirmDialogState extends State<AutoCaptureConfirmDialog> {
                                 : () => _handleConfirm(context),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _isConfirmed
-                                  ? AppColors.lightTertiaryContainer
-                                  : AppColors.lightOnTertiaryContainer,
+                                  ? colorScheme.tertiaryContainer
+                                  : colorScheme.tertiary,
                               foregroundColor: _isConfirmed
-                                  ? AppColors.lightOnTertiaryContainer
+                                  ? colorScheme.onTertiaryContainer
                                   : colorScheme.onPrimary,
                               elevation: 0,
                               padding: EdgeInsets.zero,

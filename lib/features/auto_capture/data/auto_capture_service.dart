@@ -5,18 +5,20 @@ import 'package:pocket_ledger/platform/platform_channel_service.dart';
 /// Service that connects the native Android NotificationListenerService
 /// and SMS Reader to the Dart-based Ghana Transaction Parser
 class AutoCaptureService {
-  final PlatformChannelService _platformChannel = PlatformChannelService();
+  final PlatformChannelService _platformChannel;
 
   static final AutoCaptureService _instance = AutoCaptureService._internal();
   factory AutoCaptureService() => _instance;
-  AutoCaptureService._internal();
+  AutoCaptureService._internal({PlatformChannelService? platformChannel})
+      : _platformChannel = platformChannel ?? PlatformChannelService();
 
-  final _transactionController =
-      StreamController<ParsedTransaction>.broadcast();
+  StreamController<ParsedTransaction>? _transactionController;
 
   /// Stream of automatically captured transactions
-  Stream<ParsedTransaction> get onTransactionCaptured =>
-      _transactionController.stream;
+  Stream<ParsedTransaction> get onTransactionCaptured {
+    _transactionController ??= StreamController<ParsedTransaction>.broadcast();
+    return _transactionController!.stream;
+  }
 
   bool _isInitialized = false;
 
@@ -24,6 +26,9 @@ class AutoCaptureService {
   Future<void> initialize() async {
     if (_isInitialized) return;
     _isInitialized = true;
+
+    // Ensure controller exists
+    _transactionController ??= StreamController<ParsedTransaction>.broadcast();
 
     // Listen for incoming notifications from native
     _platformChannel.onNotificationReceived((data) {
@@ -73,34 +78,42 @@ class AutoCaptureService {
   }
 
   void _processNotificationData(Map<String, dynamic> data) {
-    final title = data['title'] as String? ?? '';
-    final text = data['text'] as String? ?? '';
-    final bigText = data['bigText'] as String? ?? '';
-    final subText = data['subText'] as String? ?? '';
+    try {
+      final title = data['title'] as String? ?? '';
+      final text = data['text'] as String? ?? '';
+      final bigText = data['bigText'] as String? ?? '';
+      final subText = data['subText'] as String? ?? '';
 
-    // Combine all notification text fields for parsing
-    final combinedText = ['$title $text $bigText $subText'].join(' ').trim();
+      final combinedText = ['$title $text $bigText $subText'].join(' ').trim();
 
-    if (combinedText.isNotEmpty) {
-      final parsed = GhanaTransactionParser.parse(combinedText);
-      if (parsed != null) {
-        _transactionController.add(parsed);
+      if (combinedText.isNotEmpty) {
+        final parsed = GhanaTransactionParser.parse(combinedText);
+        if (parsed != null && _transactionController != null && !_transactionController!.isClosed) {
+          _transactionController!.add(parsed);
+        }
       }
+    } catch (e) {
+      // Silently ignore malformed notification data
     }
   }
 
   void _processSmsData(Map<String, dynamic> data) {
-    final body = data['body'] as String? ?? '';
-    if (body.isNotEmpty) {
-      final parsed = GhanaTransactionParser.parse(body);
-      if (parsed != null) {
-        _transactionController.add(parsed);
+    try {
+      final body = data['body'] as String? ?? '';
+      if (body.isNotEmpty) {
+        final parsed = GhanaTransactionParser.parse(body);
+        if (parsed != null && _transactionController != null && !_transactionController!.isClosed) {
+          _transactionController!.add(parsed);
+        }
       }
+    } catch (e) {
+      // Silently ignore malformed SMS data
     }
   }
 
   void dispose() {
-    _transactionController.close();
+    _transactionController?.close();
+    _transactionController = null;
     _isInitialized = false;
   }
 }

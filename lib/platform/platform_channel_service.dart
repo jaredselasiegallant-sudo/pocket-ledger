@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
 
 /// Platform Channel service for native Android communication
@@ -27,7 +28,8 @@ class PlatformChannelService {
         'isEnabled',
       );
       return result ?? false;
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      developer.log('Notification listener check failed: ${e.message}', name: 'PlatformChannel');
       return false;
     }
   }
@@ -35,8 +37,8 @@ class PlatformChannelService {
   Future<void> openNotificationListenerSettings() async {
     try {
       await _notificationChannel.invokeMethod('openSettings');
-    } on PlatformException {
-      // Handle error
+    } on PlatformException catch (e) {
+      developer.log('Failed to open notification settings: ${e.message}', name: 'PlatformChannel');
     }
   }
 
@@ -56,7 +58,8 @@ class PlatformChannelService {
     try {
       final result = await _smsChannel.invokeMethod<bool>('hasPermission');
       return result ?? false;
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      developer.log('SMS permission check failed: ${e.message}', name: 'PlatformChannel');
       return false;
     }
   }
@@ -64,8 +67,8 @@ class PlatformChannelService {
   Future<void> requestSmsPermission() async {
     try {
       await _smsChannel.invokeMethod('requestPermission');
-    } on PlatformException {
-      // Handle error
+    } on PlatformException catch (e) {
+      developer.log('SMS permission request failed: ${e.message}', name: 'PlatformChannel');
     }
   }
 
@@ -76,7 +79,8 @@ class PlatformChannelService {
         {'limit': limit},
       );
       return result?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      developer.log('SMS inbox read failed: ${e.message}', name: 'PlatformChannel');
       return [];
     }
   }
@@ -95,8 +99,8 @@ class PlatformChannelService {
   Future<void> registerGlobalHotkey({String hotkey = 'alt+space'}) async {
     try {
       await _hotkeyChannel.invokeMethod('register', {'hotkey': hotkey});
-    } on PlatformException {
-      // Handle error
+    } on PlatformException catch (e) {
+      developer.log('Hotkey registration failed: ${e.message}', name: 'PlatformChannel');
     }
   }
 

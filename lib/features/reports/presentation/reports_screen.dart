@@ -1,59 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import 'package:pocket_ledger/core/theme/colors/app_colors.dart';
 import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/core/utils/export_engine.dart';
+import 'package:pocket_ledger/core/providers.dart';
 
-/// Reports / Analytics Screen - Stitch Expressive
-/// Charts: Pie chart for category breakdown, bar chart for monthly trend,
-/// line chart for balance over time, top spending merchants
-class ReportsScreen extends StatefulWidget {
+/// Reports / Analytics Screen
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _selectedPeriod = 'This Month';
   int _touchedPieIndex = -1;
 
   static const _periods = ['This Week', 'This Month', 'This Year'];
 
-  // Demo data
-  static final _categoryBreakdown = [
-    _CategoryData('Food & Dining', 2450.0, AppColors.food),
-    _CategoryData('Transport', 800.0, AppColors.transport),
-    _CategoryData('Utilities', 350.0, AppColors.utilities),
-    _CategoryData('Entertainment', 420.0, AppColors.entertainment),
-    _CategoryData('Health', 100.0, AppColors.health),
-    _CategoryData('Communication', 75.0, AppColors.savings),
-    _CategoryData('Other', 200.0, AppColors.investment),
-  ];
-
-  static final _monthlyTrend = [
-    _MonthlyData('Jan', 8500, 6200),
-    _MonthlyData('Feb', 9200, 7100),
-    _MonthlyData('Mar', 7800, 5900),
-    _MonthlyData('Apr', 10500, 8200),
-    _MonthlyData('May', 9800, 7500),
-    _MonthlyData('Jun', 18500, 4195),
-  ];
-
-  static final _topMerchants = [
-    ('MTN MoMo', 'Mobile Money', 3200.0, 15),
-    ('GCB Bank', 'Bank Transfer', 2800.0, 8),
-    ('Ecobank', 'ATM/POS', 1500.0, 12),
-    ('Vodafone', 'Airtime/Bills', 450.0, 20),
-    ('Shoprite', 'Groceries', 380.0, 6),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final categorySpendingAsync = ref.watch(categorySpendingProvider);
+    final summaryAsync = ref.watch(currentMonthSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -66,97 +41,97 @@ class _ReportsScreenState extends State<ReportsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download_rounded),
-            onPressed: () async {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Generating PDF report...'),
-                  backgroundColor: colorScheme.primary,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              try {
-                final path = await ExportEngine.exportToPdf(
-                  transactions: [
-                    {'date': '2026-07-30', 'title': 'MTN MoMo Transfer', 'type': 'debit', 'amount': -250.0},
-                    {'date': '2026-07-30', 'title': 'Salary Credit', 'type': 'credit', 'amount': 5500.0},
-                  ],
-                  totalIncome: 18500.0,
-                  totalExpenses: 4195.0,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Report exported: $path'),
-                      backgroundColor: AppColors.income,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Export failed: $e'),
-                      backgroundColor: AppColors.expense,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              }
-            },
+            onPressed: () => _exportPdf(context, ref),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ─── Period Selector ───
-          _PeriodChip(
-            selected: _selectedPeriod,
-            periods: _periods,
-            colorScheme: colorScheme,
-            onSelected: (p) => setState(() => _selectedPeriod = p),
+          SegmentedButton<String>(
+            segments: _periods.map((p) {
+              return ButtonSegment(value: p, label: Text(p));
+            }).toList(),
+            selected: {_selectedPeriod},
+            onSelectionChanged: (val) =>
+                setState(() => _selectedPeriod = val.first),
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ).animate().fadeIn(duration: 300.ms),
 
           const SizedBox(height: 20),
 
           // ─── Summary Cards ───
-          _AnalyticsSummary(colorScheme: colorScheme)
-              .animate()
-              .fadeIn(duration: 300.ms, delay: 50.ms),
+          summaryAsync.when(
+            data: (summary) => _AnalyticsSummary(
+              colorScheme: colorScheme,
+              income: summary.income,
+              expenses: summary.expenses,
+            ),
+            loading: () => const SizedBox(
+                height: 80, child: Center(child: CircularProgressIndicator())),
+            error: (_, _) => const SizedBox.shrink(),
+          ).animate().fadeIn(duration: 300.ms, delay: 50.ms),
 
           const SizedBox(height: 24),
 
           // ─── Category Pie Chart ───
-          _PieChartCard(
-            colorScheme: colorScheme,
-            data: _categoryBreakdown,
-            touchedIndex: _touchedPieIndex,
-            onTouch: (i) => setState(() => _touchedPieIndex = i),
+          categorySpendingAsync.when(
+            data: (data) {
+              if (data.isEmpty) {
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.pie_chart_rounded,
+                              size: 48,
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                          const SizedBox(height: 12),
+                          Text('No spending data yet',
+                              style: AppTypography.titleMedium.copyWith(
+                                  color: colorScheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final categoryData = data.map((e) => _CategoryData(
+                e.key,
+                e.value,
+                _getCategoryColor(e.key),
+              )).toList();
+              return _PieChartCard(
+                colorScheme: colorScheme,
+                data: categoryData,
+                touchedIndex: _touchedPieIndex,
+                onTouch: (i) => setState(() => _touchedPieIndex = i),
+              );
+            },
+            loading: () => const SizedBox(
+                height: 300, child: Center(child: CircularProgressIndicator())),
+            error: (e, _) => Center(child: Text('Error: $e')),
           ).animate().fadeIn(duration: 300.ms, delay: 100.ms),
 
           const SizedBox(height: 20),
 
-          // ─── Monthly Trend Bar Chart ───
-          _BarChartCard(
-            colorScheme: colorScheme,
-            data: _monthlyTrend,
-          ).animate().fadeIn(duration: 300.ms, delay: 150.ms),
-
-          const SizedBox(height: 20),
-
-          // ─── Income vs Expense Line Chart ───
-          _LineChartCard(colorScheme: colorScheme)
-              .animate()
-              .fadeIn(duration: 300.ms, delay: 200.ms),
-
-          const SizedBox(height: 20),
-
           // ─── Top Spending ───
-          _TopSpendingCard(
-            colorScheme: colorScheme,
-            merchants: _topMerchants,
+          categorySpendingAsync.when(
+            data: (data) {
+              if (data.isEmpty) return const SizedBox.shrink();
+              final sorted = data.toList()
+                ..sort((a, b) => b.value.compareTo(a.value));
+              return _TopSpendingCard(
+                colorScheme: colorScheme,
+                categories: sorted,
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
           ).animate().fadeIn(duration: 300.ms, delay: 250.ms),
 
           const SizedBox(height: 80),
@@ -164,68 +139,111 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
     );
   }
-}
 
-class _PeriodChip extends StatelessWidget {
-  const _PeriodChip({
-    required this.selected,
-    required this.periods,
-    required this.colorScheme,
-    required this.onSelected,
-  });
-
-  final String selected;
-  final List<String> periods;
-  final ColorScheme colorScheme;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SegmentedButton<String>(
-      segments: periods.map((p) {
-        return ButtonSegment(value: p, label: Text(p));
-      }).toList(),
-      selected: {selected},
-      onSelectionChanged: (val) => onSelected(val.first),
-      style: ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  Future<void> _exportPdf(BuildContext context, WidgetRef ref) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Generating PDF report...'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
       ),
     );
+    try {
+      final summary = ref.read(currentMonthSummaryProvider).valueOrNull;
+      final txns = summary?.transactions ?? [];
+      final txData = txns.map((t) => {
+        'date': DateFormat('yyyy-MM-dd').format(t.transactionDate),
+        'title': t.title,
+        'type': t.type,
+        'amount': t.amount,
+      }).toList();
+
+      final path = await ExportEngine.exportToPdf(
+        transactions: txData,
+        totalIncome: summary?.income ?? 0,
+        totalExpenses: summary?.expenses ?? 0,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report exported: $path'),
+            backgroundColor: AppColors.income,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case 'Food & Dining':
+        return AppColors.food;
+      case 'Transport':
+        return AppColors.transport;
+      case 'Utilities':
+        return AppColors.utilities;
+      case 'Entertainment':
+        return AppColors.entertainment;
+      case 'Health':
+        return AppColors.health;
+      case 'Communication':
+        return AppColors.savings;
+      case 'Salary':
+        return AppColors.income;
+      case 'Savings':
+        return AppColors.savings;
+      case 'Investment':
+        return AppColors.investment;
+      default:
+        return AppColors.pending;
+    }
   }
 }
 
 class _AnalyticsSummary extends StatelessWidget {
-  const _AnalyticsSummary({required this.colorScheme});
+  const _AnalyticsSummary({
+    required this.colorScheme,
+    required this.income,
+    required this.expenses,
+  });
 
   final ColorScheme colorScheme;
+  final double income;
+  final double expenses;
 
   @override
   Widget build(BuildContext context) {
+    final savings = income - expenses;
     return Row(
       children: [
         _SummaryMini(
           label: 'Income',
-          amount: 18500.0,
+          amount: income,
           color: AppColors.income,
-          change: '+12%',
-          isPositive: true,
         ),
         const SizedBox(width: 12),
         _SummaryMini(
           label: 'Expenses',
-          amount: 4195.0,
+          amount: expenses,
           color: AppColors.expense,
-          change: '-8%',
-          isPositive: true,
         ),
         const SizedBox(width: 12),
         _SummaryMini(
           label: 'Savings',
-          amount: 14305.0,
+          amount: savings,
           color: AppColors.savings,
-          change: '+25%',
-          isPositive: true,
         ),
       ],
     );
@@ -237,15 +255,11 @@ class _SummaryMini extends StatelessWidget {
     required this.label,
     required this.amount,
     required this.color,
-    required this.change,
-    required this.isPositive,
   });
 
   final String label;
   final double amount;
   final Color color;
-  final String change;
-  final bool isPositive;
 
   @override
   Widget build(BuildContext context) {
@@ -261,9 +275,7 @@ class _SummaryMini extends StatelessWidget {
           children: [
             Text(
               label,
-              style: AppTypography.labelSmall.copyWith(
-                color: color,
-              ),
+              style: AppTypography.labelSmall.copyWith(color: color),
             ),
             const SizedBox(height: 4),
             Text(
@@ -272,24 +284,6 @@ class _SummaryMini extends StatelessWidget {
                 color: color,
                 fontWeight: FontWeight.w700,
               ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Icon(
-                  isPositive ? Icons.trending_up : Icons.trending_down,
-                  color: isPositive ? AppColors.income : AppColors.expense,
-                  size: 12,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  change,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: isPositive ? AppColors.income : AppColors.expense,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
             ),
           ],
         ),
@@ -348,13 +342,12 @@ class _PieChartCard extends StatelessWidget {
                     final d = entry.value;
                     final isTouched = i == touchedIndex;
                     final radius = isTouched ? 55.0 : 45.0;
+                    final pct = total > 0 ? d.amount / total * 100 : 0.0;
 
                     return PieChartSectionData(
                       color: d.color,
                       value: d.amount,
-                      title: isTouched
-                          ? '${(d.amount / total * 100).toInt()}%'
-                          : '',
+                      title: isTouched ? '${pct.toInt()}%' : '',
                       radius: radius,
                       titleStyle: AppTypography.labelSmall.copyWith(
                         color: Colors.white,
@@ -370,7 +363,7 @@ class _PieChartCard extends StatelessWidget {
               spacing: 16,
               runSpacing: 8,
               children: data.map((d) {
-                final pct = (d.amount / total * 100).toInt();
+                final pct = total > 0 ? (d.amount / total * 100).toInt() : 0;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -400,281 +393,21 @@ class _PieChartCard extends StatelessWidget {
   }
 }
 
-class _BarChartCard extends StatelessWidget {
-  const _BarChartCard({
-    required this.colorScheme,
-    required this.data,
-  });
-
-  final ColorScheme colorScheme;
-  final List<_MonthlyData> data;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Monthly Trend',
-                  style: AppTypography.titleMedium.copyWith(
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                Row(
-                  children: [
-                    _LegendDot(color: colorScheme.primary, label: 'Income'),
-                    const SizedBox(width: 12),
-                    _LegendDot(color: AppColors.expense, label: 'Expenses'),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: 20000,
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        return BarTooltipItem(
-                          CurrencyFormatter.formatGhs(rod.toY),
-                          AppTypography.labelSmall.copyWith(
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final idx = value.toInt();
-                          if (idx < data.length) {
-                            return Text(
-                              data[idx].month,
-                              style: AppTypography.labelSmall.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
-                  barGroups: data.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final d = entry.value;
-                    return BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: d.income,
-                          color: colorScheme.primary,
-                          width: 12,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4),
-                          ),
-                        ),
-                        BarChartRodData(
-                          toY: d.expenses,
-                          color: AppColors.expense,
-                          width: 12,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: AppTypography.labelSmall.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LineChartCard extends StatelessWidget {
-  const _LineChartCard({required this.colorScheme});
-
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final spots = [
-      FlSpot(0, 10000),
-      FlSpot(1, 12500),
-      FlSpot(2, 11200),
-      FlSpot(3, 14800),
-      FlSpot(4, 13500),
-      FlSpot(5, 12450),
-    ];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Balance Over Time',
-              style: AppTypography.titleMedium.copyWith(
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 180,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 5000,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          const months = [
-                            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'
-                          ];
-                          final idx = value.toInt();
-                          if (idx < months.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                months[idx],
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: colorScheme.primary,
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(
-                        show: true,
-                        getDotPainter: (spot, percent, barData, index) {
-                          return FlDotCirclePainter(
-                            radius: 4,
-                            color: colorScheme.primary,
-                            strokeWidth: 2,
-                            strokeColor: Colors.white,
-                          );
-                        },
-                      ),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: colorScheme.primary.withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TopSpendingCard extends StatelessWidget {
   const _TopSpendingCard({
     required this.colorScheme,
-    required this.merchants,
+    required this.categories,
   });
 
   final ColorScheme colorScheme;
-  final List<(String, String, double, int)> merchants;
+  final List<MapEntry<String, double>> categories;
 
   @override
   Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    final maxAmount = categories.first.value;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -688,11 +421,11 @@ class _TopSpendingCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            ...merchants.asMap().entries.map((entry) {
+            ...categories.asMap().entries.map((entry) {
               final i = entry.key;
-              final (name, type, amount, txnCount) = entry.value;
-              final maxAmount = merchants.first.$3;
-              final barWidth = amount / maxAmount;
+              final name = entry.value.key;
+              final amount = entry.value.value;
+              final barWidth = maxAmount > 0 ? amount / maxAmount : 0.0;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -720,23 +453,12 @@ class _TopSpendingCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                              Text(
-                                '$txnCount transactions • $type',
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            name,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
                           ),
                         ),
                         Text(
@@ -776,12 +498,4 @@ class _CategoryData {
   final Color color;
 
   const _CategoryData(this.name, this.amount, this.color);
-}
-
-class _MonthlyData {
-  final String month;
-  final double income;
-  final double expenses;
-
-  const _MonthlyData(this.month, this.income, this.expenses);
 }

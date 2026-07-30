@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import 'package:pocket_ledger/core/theme/colors/app_colors.dart';
 import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
+import 'package:pocket_ledger/core/providers.dart';
 
-/// Full Add Transaction Screen - Stitch Expressive
+/// Full Add Transaction Screen
 /// Supports credit, debit, and transfer with category picker,
 /// account selector, date picker, and notes
-class AddTransactionScreen extends StatefulWidget {
+class AddTransactionScreen extends ConsumerStatefulWidget {
   const AddTransactionScreen({super.key});
 
   @override
-  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  ConsumerState<AddTransactionScreen> createState() =>
+      _AddTransactionScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen>
+class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
@@ -27,9 +31,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   String _selectedAccount = 'MTN MoMo';
   DateTime _selectedDate = DateTime.now();
   bool _isRecurring = false;
+  bool _isSaving = false;
 
   static const _categories = AppConstants.defaultCategories;
-
   static const _accounts = [
     'MTN MoMo',
     'Telecel Cash',
@@ -43,9 +47,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
-      }
+      if (!_tabController.indexIsChanging) setState(() {});
     });
   }
 
@@ -77,13 +79,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         ),
         actions: [
           TextButton(
-            onPressed: _saveTransaction,
-            child: Text(
-              'Save',
-              style: AppTypography.labelLarge.copyWith(
-                color: colorScheme.primary,
-              ),
-            ),
+            onPressed: _isSaving ? null : _saveTransaction,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Save',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: colorScheme.primary,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -92,7 +100,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // ─── Amount Display ───
             _AmountInput(
               controller: _amountController,
               colorScheme: colorScheme,
@@ -100,7 +107,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 24),
 
-            // ─── Transaction Type Tabs ───
             _TransactionTypeTabs(
               tabController: _tabController,
               colorScheme: colorScheme,
@@ -108,7 +114,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 24),
 
-            // ─── Title / Description ───
             TextFormField(
               controller: _titleController,
               style: AppTypography.bodyLarge.copyWith(
@@ -125,7 +130,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 20),
 
-            // ─── Category Picker ───
             _CategoryPicker(
               selected: _selectedCategory,
               categories: _categories,
@@ -135,7 +139,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 20),
 
-            // ─── Account Picker ───
             _AccountPicker(
               selected: _selectedAccount,
               accounts: _accounts,
@@ -145,7 +148,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 20),
 
-            // ─── Date Picker ───
             _DatePicker(
               selectedDate: _selectedDate,
               colorScheme: colorScheme,
@@ -154,7 +156,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 20),
 
-            // ─── Notes ───
             TextFormField(
               controller: _notesController,
               style: AppTypography.bodyMedium.copyWith(
@@ -176,7 +177,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 20),
 
-            // ─── Recurring Toggle ───
             _RecurringToggle(
               isRecurring: _isRecurring,
               colorScheme: colorScheme,
@@ -185,11 +185,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
             const SizedBox(height: 32),
 
-            // ─── Save Button ───
             SizedBox(
               height: 56,
               child: FilledButton(
-                onPressed: _saveTransaction,
+                onPressed: _isSaving ? null : _saveTransaction,
                 style: FilledButton.styleFrom(
                   backgroundColor: _getTransactionColor(),
                   shape: RoundedRectangleBorder(
@@ -239,27 +238,91 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     }
   }
 
-  void _saveTransaction() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: Save to database via repository
-      Navigator.pop(context);
+  String _getTransactionType() {
+    switch (_tabController.index) {
+      case 0:
+        return 'debit';
+      case 1:
+        return 'credit';
+      case 2:
+        return 'transfer';
+      default:
+        return 'debit';
+    }
+  }
+
+  Future<void> _saveTransaction() async {
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Transaction saved: ${_amountController.text} - $_selectedCategory',
-          ),
-          backgroundColor: AppColors.income,
+          content: const Text('Please enter a valid amount'),
+          backgroundColor: AppColors.expense,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
         ),
       );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final txRepo = ref.read(transactionRepositoryProvider);
+      await txRepo.addTransaction(
+        title: _titleController.text.isNotEmpty
+            ? _titleController.text
+            : _getSaveButtonText(),
+        amount: amount,
+        type: _getTransactionType(),
+        category: _selectedCategory,
+        vendor: _selectedAccount,
+        account: _selectedAccount,
+        description: _notesController.text.isNotEmpty ? _notesController.text : null,
+        transactionDate: _selectedDate,
+      );
+
+      // Record spending in budget if it's an expense
+      if (_getTransactionType() == 'debit') {
+        final budgetRepo = ref.read(budgetRepositoryProvider);
+        await budgetRepo.recordSpending(_selectedCategory, amount);
+      }
+
+      // Refresh data
+      ref.invalidate(currentMonthSummaryProvider);
+      ref.invalidate(totalBalanceProvider);
+      ref.invalidate(categorySpendingProvider);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${_getSaveButtonText()}: ${_amountController.text} - $_selectedCategory',
+            ),
+            backgroundColor: AppColors.income,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save: $e'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 }
 
-/// Amount Input with GH₵ prefix
 class _AmountInput extends StatelessWidget {
   const _AmountInput({
     required this.controller,
@@ -281,7 +344,7 @@ class _AmountInput extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            'GH₵',
+            AppConstants.defaultCurrencySymbol,
             style: AppTypography.headlineLarge.copyWith(
               color: colorScheme.primary,
               fontWeight: FontWeight.w800,
@@ -291,10 +354,13 @@ class _AmountInput extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                FilteringTextInputFormatter.allow(
+                    RegExp(r'^\d+\.?\d{0,2}')),
               ],
+              autofocus: true,
               style: AppTypography.headlineLarge.copyWith(
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
@@ -302,7 +368,8 @@ class _AmountInput extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: '0.00',
                 hintStyle: AppTypography.headlineLarge.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  color:
+                      colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                   fontWeight: FontWeight.w800,
                 ),
                 border: InputBorder.none,
@@ -319,7 +386,6 @@ class _AmountInput extends StatelessWidget {
   }
 }
 
-/// Transaction Type Tab Selector
 class _TransactionTypeTabs extends StatelessWidget {
   const _TransactionTypeTabs({
     required this.tabController,
@@ -372,7 +438,6 @@ class _TransactionTypeTabs extends StatelessWidget {
   }
 }
 
-/// Category Grid Picker
 class _CategoryPicker extends StatelessWidget {
   const _CategoryPicker({
     required this.selected,
@@ -408,9 +473,7 @@ class _CategoryPicker extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
+                    horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? colorScheme.primaryContainer
@@ -419,7 +482,8 @@ class _CategoryPicker extends StatelessWidget {
                   border: Border.all(
                     color: isSelected
                         ? colorScheme.primary
-                        : colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        : colorScheme.outlineVariant
+                            .withValues(alpha: 0.3),
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -429,7 +493,8 @@ class _CategoryPicker extends StatelessWidget {
                     color: isSelected
                         ? colorScheme.primary
                         : colorScheme.onSurfaceVariant,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -441,7 +506,6 @@ class _CategoryPicker extends StatelessWidget {
   }
 }
 
-/// Account Picker Dropdown
 class _AccountPicker extends StatelessWidget {
   const _AccountPicker({
     required this.selected,
@@ -486,10 +550,7 @@ class _AccountPicker extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
               items: accounts.map((acc) {
-                return DropdownMenuItem(
-                  value: acc,
-                  child: Text(acc),
-                );
+                return DropdownMenuItem(value: acc, child: Text(acc));
               }).toList(),
               onChanged: (val) {
                 if (val != null) onSelected(val);
@@ -502,7 +563,6 @@ class _AccountPicker extends StatelessWidget {
   }
 }
 
-/// Date Picker
 class _DatePicker extends StatelessWidget {
   const _DatePicker({
     required this.selectedDate,
@@ -531,9 +591,9 @@ class _DatePicker extends StatelessWidget {
           builder: (context, child) {
             return Theme(
               data: Theme.of(context).copyWith(
-                colorScheme: Theme.of(context).colorScheme.copyWith(
-                      primary: colorScheme.primary,
-                    ),
+                colorScheme: Theme.of(context)
+                    .colorScheme
+                    .copyWith(primary: colorScheme.primary),
               ),
               child: child!,
             );
@@ -542,7 +602,8 @@ class _DatePicker extends StatelessWidget {
         if (picked != null) onPicked(picked);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
@@ -558,7 +619,7 @@ class _DatePicker extends StatelessWidget {
             Text(
               isToday
                   ? 'Today'
-                  : '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                  : DateFormat('dd/MM/yyyy').format(selectedDate),
               style: AppTypography.bodyLarge.copyWith(
                 color: colorScheme.onSurface,
               ),
@@ -576,7 +637,6 @@ class _DatePicker extends StatelessWidget {
   }
 }
 
-/// Recurring Transaction Toggle
 class _RecurringToggle extends StatelessWidget {
   const _RecurringToggle({
     required this.isRecurring,
@@ -591,7 +651,8 @@ class _RecurringToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
