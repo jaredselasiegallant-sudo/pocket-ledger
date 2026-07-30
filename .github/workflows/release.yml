@@ -1,0 +1,96 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: 'stable'
+
+      - run: flutter pub get
+
+      - run: flutter build windows --release
+
+      - name: Zip Windows build
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath pocket-ledger-windows.zip
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: pocket-ledger-windows.zip
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: 'stable'
+
+      - run: flutter pub get
+
+      - run: flutter build apk --release
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  release:
+    needs: [build-windows, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+
+      - name: Download Android build
+        uses: actions/download-artifact@v4
+        with:
+          name: android-build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "PocketLedger ${{ github.ref_name }}"
+          body: |
+            ## PocketLedger ${{ github.ref_name }}
+
+            ### What's New
+            - See commit history for changes
+
+            ### Downloads
+            - **Windows**: `pocket-ledger-windows.zip` — Extract and run `pocket_ledger.exe`
+            - **Android**: `app-release.apk` — Enable "Install from unknown sources" and install
+          files: |
+            pocket-ledger-windows.zip
+            app-release.apk
+          draft: false
+          prerelease: false
