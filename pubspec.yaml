@@ -36,7 +36,6 @@ dependencies:
   fl_chart: ^0.70.2
 
   # File Export
-  file_picker: ^8.1.7
   share_plus: ^10.1.4
   pdf: ^3.11.2
   excel: ^4.0.6
