@@ -66,6 +66,11 @@ class AutoCaptureService {
     await _platformChannel.requestSmsPermission();
   }
 
+  /// Read raw SMS messages (with date for filtering)
+  Future<List<Map<String, dynamic>>> readRawSms({int limit = 100}) async {
+    return await _platformChannel.readSmsInbox(limit: limit);
+  }
+
   /// Scan SMS inbox for historical transactions
   Future<List<ParsedTransaction>> scanSmsInbox({int limit = 100}) async {
     final messages = await _platformChannel.readSmsInbox(limit: limit);

@@ -32,6 +32,7 @@ abstract final class AppConstants {
   static const String keyOnboardingComplete = 'onboarding_complete';
   static const String keyNotificationEnabled = 'notification_enabled';
   static const String keySmsReaderEnabled = 'sms_reader_enabled';
+  static const String keyInstallDate = 'install_date';
 
   // ─── Platform Channel Names ───
   static const String notificationListenerChannel =

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pocket_ledger/core/theme/colors/app_colors.dart';
 import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
@@ -357,7 +358,20 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
 
-    final transactions = await service.scanSmsInbox(limit: 200);
+    // Read raw SMS and filter by install date
+    final prefs = await SharedPreferences.getInstance();
+    final installDateStr = prefs.getString(AppConstants.keyInstallDate);
+    final installDate = installDateStr != null ? DateTime.parse(installDateStr) : DateTime(2020);
+
+    final rawMessages = await service.readRawSms(limit: 200);
+    final transactions = <ParsedTransaction>[];
+    for (final msg in rawMessages) {
+      final msgDate = DateTime.fromMillisecondsSinceEpoch(msg['date'] as int? ?? 0);
+      if (msgDate.isBefore(installDate)) continue;
+      final body = msg['body'] as String? ?? '';
+      final parsed = GhanaTransactionParser.parse(body);
+      if (parsed != null) transactions.add(parsed);
+    }
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
