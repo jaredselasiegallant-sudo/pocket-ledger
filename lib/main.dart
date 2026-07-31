@@ -7,6 +7,7 @@ import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/providers.dart';
 import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/data/database/app_database.dart';
+import 'package:pocket_ledger/data/repositories/transaction_repository.dart';
 import 'package:pocket_ledger/features/auto_capture/data/auto_capture_service.dart';
 import 'package:pocket_ledger/features/splash/presentation/splash_screen.dart';
 
@@ -33,6 +34,22 @@ void main() async {
   await autoCaptureService.initialize();
   developer.log('Auto-capture service initialized', name: 'PocketLedger');
 
+  // Subscribe to real-time transaction stream — auto-import to DB
+  final txRepo = TransactionRepository(db);
+  autoCaptureService.onTransactionCaptured.listen((parsed) async {
+    developer.log('Auto-importing: ${parsed.formattedAmount} ${parsed.type.name} via ${parsed.provider}',
+        name: 'PocketLedger');
+    final id = await txRepo.addAutoCapturedTransaction(parsed);
+    if (id != null) {
+      developer.log('Saved transaction #$id', name: 'PocketLedger');
+    } else {
+      developer.log('Duplicate skipped', name: 'PocketLedger');
+    }
+  });
+
+  // Scan SMS inbox on startup to catch transactions missed while app was closed
+  _scanMissedSms(autoCaptureService, txRepo);
+
   final themeModeNotifier = ThemeModeNotifier()..init(initialTheme);
   final currencyNotifier = CurrencyNotifier()..init(initialCurrency);
 
@@ -46,6 +63,26 @@ void main() async {
       child: const PocketLedgerApp(),
     ),
   );
+}
+
+/// Scan recent SMS on startup to capture any transactions missed while app was closed.
+/// Runs in background — doesn't block app launch.
+void _scanMissedSms(AutoCaptureService service, TransactionRepository txRepo) async {
+  try {
+    final hasPermission = await service.isSmsPermissionGranted();
+    if (!hasPermission) return;
+
+    developer.log('Scanning SMS inbox for missed transactions...', name: 'PocketLedger');
+    final transactions = await service.scanSmsInbox(limit: 100);
+    var imported = 0;
+    for (final parsed in transactions) {
+      final id = await txRepo.addAutoCapturedTransaction(parsed);
+      if (id != null) imported++;
+    }
+    developer.log('Startup SMS scan: ${transactions.length} found, $imported imported', name: 'PocketLedger');
+  } catch (e) {
+    developer.log('Startup SMS scan failed: $e', name: 'PocketLedger');
+  }
 }
 
 class PocketLedgerApp extends ConsumerWidget {

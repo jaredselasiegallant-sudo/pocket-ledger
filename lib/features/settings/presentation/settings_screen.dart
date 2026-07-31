@@ -7,6 +7,8 @@ import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/core/utils/export_engine.dart';
 import 'package:pocket_ledger/core/providers.dart';
+import 'package:pocket_ledger/data/database/app_database.dart';
+import 'package:pocket_ledger/data/repositories/transaction_repository.dart';
 import 'package:pocket_ledger/features/auto_capture/data/auto_capture_service.dart';
 import 'package:pocket_ledger/features/auto_capture/data/ghana_transaction_parser.dart';
 import 'package:pocket_ledger/features/settings/presentation/about_screen.dart';
@@ -498,16 +500,35 @@ class SettingsScreen extends ConsumerWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('${transactions.length} transactions ready to import'),
-                            backgroundColor: AppColors.income,
+                            content: const Text('Importing transactions...'),
+                            backgroundColor: Theme.of(context).colorScheme.primary,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         );
+
+                        final txRepo = TransactionRepository(AppDatabase());
+                        var imported = 0;
+                        for (final txn in transactions) {
+                          final id = await txRepo.addAutoCapturedTransaction(txn);
+                          if (id != null) imported++;
+                        }
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$imported transaction(s) imported'),
+                              backgroundColor: AppColors.income,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        }
                       },
                       icon: const Icon(Icons.download_rounded),
                       label: Text('Import ${transactions.length} Transaction(s)'),
