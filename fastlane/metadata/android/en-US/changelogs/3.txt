@@ -1,0 +1,1 @@
+v1.2.4 — Tap-to-edit transactions, skip unknown SMS types in auto-import, APK install via FileProvider for updates

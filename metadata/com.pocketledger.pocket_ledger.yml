@@ -1,0 +1,40 @@
+Categories:
+  - Money
+  - Finance
+
+License: MIT
+
+AuthorName: Jared Selasie Gallant
+SourceCode: https://github.com/jaredselasiegallant-sudo/pocket-ledger
+IssueTracker: https://github.com/jaredselasiegallant-sudo/pocket-ledger/issues
+
+RepoType: git
+Repo: https://github.com/jaredselasiegallant-sudo/pocket-ledger.git
+
+Builds:
+  - versionName: '1.2.4'
+    versionCode: 3
+    commit: v1.2.4
+    subdir: android
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@stable
+    rm:
+      - ios
+    build:
+      - cd $$flutter$$
+      - git submodule update --init --recursive
+      - export PATH="$$flutter$$/bin:$$flutter$$/bin/cache/dart-sdk/bin:$$PATH$$"
+      - flutter config --no-analytics
+      - flutter pub get
+      - flutter build apk --release
+
+AutoUpdateMode: Version v%v
+UpdateCheckMode: Tags
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
+CurrentVersion: '1.2.4'
+CurrentVersionCode: 3
+
+AllowedAPKSigningKeys: b7ea586fe483d06abc4fb5db842c65e223edcd2f1c2f093410600b8ac7e84cf5
+
+# AntiFeatures: None - all dependencies are FOSS, app works fully offline

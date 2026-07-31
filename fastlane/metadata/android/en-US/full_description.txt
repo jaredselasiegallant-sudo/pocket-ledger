@@ -1,0 +1,15 @@
+PocketLedger is a privacy-first, offline personal finance app built for Ghana and beyond.
+
+Features:
+- Automatic SMS transaction parsing for MTN MoMo, Vodafone Cash, AirtelTigo, and banks
+- Real-time transaction capture from incoming SMS
+- Multiple currency support (GHS, USD, EUR, GBP, NGN, KES, ZAR) with dynamic switching
+- Interactive charts and spending analytics
+- Category-based budget tracking
+- CSV and PDF export
+- Dark and light themes with Precision Utilitarian design
+- No internet required — all data stays on your device
+- Zero tracking, zero ads, zero data collection
+- Open source under the MIT license
+
+PocketLedger works completely offline. Your financial data never leaves your phone.
