@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:pocket_ledger/core/theme/colors/app_colors.dart';
 import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
+import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/core/utils/export_engine.dart';
 import 'package:pocket_ledger/core/providers.dart';
 import 'package:pocket_ledger/features/auto_capture/data/auto_capture_service.dart';
+import 'package:pocket_ledger/features/auto_capture/data/ghana_transaction_parser.dart';
 import 'package:pocket_ledger/features/settings/presentation/about_screen.dart';
 import 'package:pocket_ledger/features/settings/presentation/quick_expense_modal.dart';
 import 'package:pocket_ledger/features/settings/presentation/update_dialog.dart';
@@ -50,7 +52,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.sms_rounded,
                 title: 'SMS Reader',
                 subtitle: 'Scan SMS for transaction texts',
-                onTap: () {},
+                onTap: () => _showSmsReaderFlow(context),
               ),
               _SettingsTile(
                 icon: Icons.speed_rounded,
@@ -293,6 +295,230 @@ class SettingsScreen extends ConsumerWidget {
         builder: (_) => UpdateDialog(updateInfo: info),
       );
     }
+  }
+
+  Future<void> _showSmsReaderFlow(BuildContext context) async {
+    final service = AutoCaptureService();
+    final hasPermission = await service.isSmsPermissionGranted();
+
+    if (!hasPermission) {
+      if (!context.mounted) return;
+      final granted = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('SMS Permission Required'),
+          content: const Text(
+            'PocketLedger needs access to your SMS inbox to scan for MoMo and bank transaction messages. '
+            'No data ever leaves your device.',
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await service.requestSmsPermission();
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              },
+              child: const Text('Grant Access'),
+            ),
+          ],
+        ),
+      );
+
+      if (granted != true || !context.mounted) return;
+
+      // Re-check after permission request
+      final nowGranted = await service.isSmsPermissionGranted();
+      if (!nowGranted || !context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('SMS permission not granted. Grant it in Android Settings.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Permission granted — start scanning
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Scanning SMS inbox...'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    final transactions = await service.scanSmsInbox(limit: 200);
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    _showSmsResults(context, transactions);
+  }
+
+  void _showSmsResults(BuildContext context, List<ParsedTransaction> transactions) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (ctx, scrollController) => Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(Icons.sms_rounded,
+                      color: Theme.of(ctx).colorScheme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SMS Scan Results',
+                          style: AppTypography.titleMedium.copyWith(
+                            color: Theme.of(ctx).colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          '${transactions.length} transaction(s) found',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: transactions.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off_rounded,
+                              size: 48,
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No transactions found',
+                            style: AppTypography.titleMedium.copyWith(
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No MoMo or bank transaction messages\ndetected in your SMS inbox.',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: transactions.length,
+                      itemBuilder: (ctx, i) {
+                        final txn = transactions[i];
+                        final isCredit = txn.isCredit;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: (isCredit ? AppColors.income : AppColors.expense)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isCredit
+                                  ? Icons.arrow_downward_rounded
+                                  : Icons.arrow_upward_rounded,
+                              color: isCredit ? AppColors.income : AppColors.expense,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            txn.typeLabel,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(ctx).colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${txn.provider} ${txn.reference != null ? '• ${txn.reference}' : ''}',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Text(
+                            CurrencyFormatter.format(txn.amount),
+                            style: AppTypography.bodyLarge.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isCredit ? AppColors.income : AppColors.expense,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            if (transactions.isNotEmpty)
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${transactions.length} transactions ready to import'),
+                            backgroundColor: AppColors.income,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.download_rounded),
+                      label: Text('Import ${transactions.length} Transaction(s)'),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showCurrencyPicker(BuildContext context, WidgetRef ref, String currentCode) {

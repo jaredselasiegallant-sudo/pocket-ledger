@@ -38,8 +38,14 @@ class MainActivity : FlutterActivity() {
         }
 
         // ─── SMS Reader Method Channel ───
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_CHANNEL)
-            .setMethodCallHandler { call, result ->
+        val smsMethodChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SMS_CHANNEL
+        )
+        // Give SmsReceiver a reference so it can push incoming SMS to Dart
+        SmsReceiver.methodChannel = smsMethodChannel
+
+        smsMethodChannel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "hasPermission" -> {
                         result.success(hasSmsPermission())
