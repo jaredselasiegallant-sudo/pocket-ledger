@@ -9,13 +9,27 @@ import 'package:pocket_ledger/core/providers.dart';
 import 'package:pocket_ledger/data/database/app_database.dart';
 import 'package:pocket_ledger/features/transactions/presentation/add_transaction_screen.dart';
 import 'package:pocket_ledger/features/transactions/presentation/transactions_list_screen.dart';
+import 'package:pocket_ledger/features/settings/presentation/update_dialog.dart';
 
 /// Dashboard / Home Screen
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateDialog.showIfAvailable(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final summaryAsync = ref.watch(currentMonthSummaryProvider);

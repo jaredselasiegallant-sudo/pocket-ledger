@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,7 @@ import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/providers.dart';
 import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/data/database/app_database.dart';
+import 'package:pocket_ledger/features/auto_capture/data/auto_capture_service.dart';
 import 'package:pocket_ledger/features/splash/presentation/splash_screen.dart';
 
 void main() async {
@@ -25,6 +27,11 @@ void main() async {
   // Initialize database eagerly
   final db = AppDatabase();
   await db.customSelect('SELECT 1').get();
+
+  // Initialize notification listener & auto-capture
+  final autoCaptureService = AutoCaptureService();
+  await autoCaptureService.initialize();
+  developer.log('Auto-capture service initialized', name: 'PocketLedger');
 
   final themeModeNotifier = ThemeModeNotifier()..init(initialTheme);
   final currencyNotifier = CurrencyNotifier()..init(initialCurrency);

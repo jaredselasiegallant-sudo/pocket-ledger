@@ -42,11 +42,14 @@ class PlatformChannelService {
     }
   }
 
-  /// Set up callback for incoming notifications
+  /// Set up callback for incoming notifications from native NotificationListenerService
   void onNotificationReceived(void Function(Map<String, dynamic> data) callback) {
+    developer.log('Setting up notification listener callback on Dart side', name: 'PlatformChannel');
     _notificationChannel.setMethodCallHandler((call) async {
+      developer.log('Dart received method call: ${call.method}', name: 'PlatformChannel');
       if (call.method == 'onNotificationPosted') {
         final data = Map<String, dynamic>.from(call.arguments as Map);
+        developer.log('Notification received: ${data['packageName']} - ${data['title']}', name: 'PlatformChannel');
         callback(data);
       }
       return null;

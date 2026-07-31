@@ -6,9 +6,11 @@ import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/utils/export_engine.dart';
 import 'package:pocket_ledger/core/providers.dart';
-import 'package:pocket_ledger/features/auto_capture/presentation/auto_capture_confirm_dialog.dart';
+import 'package:pocket_ledger/features/auto_capture/data/auto_capture_service.dart';
 import 'package:pocket_ledger/features/settings/presentation/about_screen.dart';
 import 'package:pocket_ledger/features/settings/presentation/quick_expense_modal.dart';
+import 'package:pocket_ledger/features/settings/presentation/update_dialog.dart';
+import 'package:pocket_ledger/core/utils/update_service.dart';
 import 'package:pocket_ledger/main.dart' show themeModeProvider;
 
 /// Settings Screen
@@ -123,6 +125,12 @@ class SettingsScreen extends ConsumerWidget {
             title: 'About',
             children: [
               _SettingsTile(
+                icon: Icons.system_update_rounded,
+                title: 'Check for Updates',
+                subtitle: 'See if a new version is available',
+                onTap: () => _checkForUpdates(context),
+              ),
+              _SettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: AppConstants.appName,
                 subtitle:
@@ -144,15 +152,147 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAutoCaptureDemo(BuildContext context) {
-    AutoCaptureConfirmDialog.show(
-      context,
-      amount: 250.00,
-      provider: 'MTN MoMo',
-      type: 'debit',
-      recipient: 'John Mensah',
-      reference: 'MOMO123456789',
+  void _showAutoCaptureDemo(BuildContext context) async {
+    final service = AutoCaptureService();
+    final isEnabled = await service.isNotificationListenerEnabled();
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications_active_rounded,
+                  color: Theme.of(ctx).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Notification Listener',
+                  style: AppTypography.headlineSmall.copyWith(
+                    color: Theme.of(ctx).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isEnabled
+                    ? AppColors.income.withValues(alpha: 0.08)
+                    : Theme.of(ctx).colorScheme.errorContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isEnabled ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                    color: isEnabled ? AppColors.income : Theme.of(ctx).colorScheme.error,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      isEnabled
+                          ? 'Notification listener is active'
+                          : 'Notification listener is disabled',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: Theme.of(ctx).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'PocketLedger reads notifications from MoMo, bank, and mobile money apps to automatically log your transactions. '
+              'No data ever leaves your device.',
+              style: AppTypography.bodyMedium.copyWith(
+                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (!isEnabled)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    await service.openNotificationSettings();
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Enable in Settings'),
+                ),
+              ),
+            if (isEnabled)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await service.openNotificationSettings();
+                  },
+                  icon: const Icon(Icons.settings_rounded),
+                  label: const Text('Manage in Settings'),
+                ),
+              ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Checking for updates...'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    final info = await UpdateService.checkForUpdate();
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    if (info == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You\'re running the latest version!'),
+          backgroundColor: AppColors.income,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => UpdateDialog(updateInfo: info),
+      );
+    }
   }
 
   void _showCurrencyPicker(BuildContext context, WidgetRef ref, String currentCode) {

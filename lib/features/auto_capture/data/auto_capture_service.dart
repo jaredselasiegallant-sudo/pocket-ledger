@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:pocket_ledger/features/auto_capture/data/ghana_transaction_parser.dart';
 import 'package:pocket_ledger/platform/platform_channel_service.dart';
 
@@ -26,19 +27,23 @@ class AutoCaptureService {
   Future<void> initialize() async {
     if (_isInitialized) return;
     _isInitialized = true;
+    developer.log('Initializing AutoCaptureService...', name: 'AutoCapture');
 
     // Ensure controller exists
     _transactionController ??= StreamController<ParsedTransaction>.broadcast();
 
     // Listen for incoming notifications from native
     _platformChannel.onNotificationReceived((data) {
+      developer.log('Notification data received in AutoCaptureService', name: 'AutoCapture');
       _processNotificationData(data);
     });
 
     // Listen for incoming SMS from native
     _platformChannel.onSmsReceived((data) {
+      developer.log('SMS data received in AutoCaptureService', name: 'AutoCapture');
       _processSmsData(data);
     });
+    developer.log('AutoCaptureService initialized successfully', name: 'AutoCapture');
   }
 
   /// Check if notification listener is enabled
@@ -83,31 +88,49 @@ class AutoCaptureService {
       final text = data['text'] as String? ?? '';
       final bigText = data['bigText'] as String? ?? '';
       final subText = data['subText'] as String? ?? '';
+      final packageName = data['packageName'] as String? ?? '';
+
+      developer.log('Processing notification from: $packageName', name: 'AutoCapture');
+      developer.log('  title=$title, text=$text', name: 'AutoCapture');
 
       final combinedText = ['$title $text $bigText $subText'].join(' ').trim();
 
       if (combinedText.isNotEmpty) {
         final parsed = GhanaTransactionParser.parse(combinedText);
-        if (parsed != null && _transactionController != null && !_transactionController!.isClosed) {
-          _transactionController!.add(parsed);
+        if (parsed != null) {
+          developer.log('Parsed transaction: ${parsed.formattedAmount} ${parsed.type.name}', name: 'AutoCapture');
+          if (_transactionController != null && !_transactionController!.isClosed) {
+            _transactionController!.add(parsed);
+          }
+        } else {
+          developer.log('Could not parse transaction from notification text', name: 'AutoCapture');
         }
+      } else {
+        developer.log('Notification text was empty, skipping', name: 'AutoCapture');
       }
     } catch (e) {
-      // Silently ignore malformed notification data
+      developer.log('Error processing notification: $e', name: 'AutoCapture');
     }
   }
 
   void _processSmsData(Map<String, dynamic> data) {
     try {
       final body = data['body'] as String? ?? '';
+      final address = data['address'] as String? ?? '';
+      developer.log('Processing SMS from: $address', name: 'AutoCapture');
       if (body.isNotEmpty) {
         final parsed = GhanaTransactionParser.parse(body);
-        if (parsed != null && _transactionController != null && !_transactionController!.isClosed) {
-          _transactionController!.add(parsed);
+        if (parsed != null) {
+          developer.log('Parsed SMS transaction: ${parsed.formattedAmount} ${parsed.type.name}', name: 'AutoCapture');
+          if (_transactionController != null && !_transactionController!.isClosed) {
+            _transactionController!.add(parsed);
+          }
+        } else {
+          developer.log('Could not parse transaction from SMS text', name: 'AutoCapture');
         }
       }
     } catch (e) {
-      // Silently ignore malformed SMS data
+      developer.log('Error processing SMS: $e', name: 'AutoCapture');
     }
   }
 
