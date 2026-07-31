@@ -5,7 +5,6 @@ import android.provider.Settings
 import android.text.TextUtils
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -17,31 +16,26 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
 
         // ─── Notification Listener Method Channel ───
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NOTIFICATION_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "isEnabled" -> {
-                        result.success(isNotificationListenerEnabled())
-                    }
-                    "openSettings" -> {
-                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                        startActivity(intent)
-                        result.success(null)
-                    }
-                    else -> result.notImplemented()
-                }
-            }
+        val notificationMethodChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            NOTIFICATION_CHANNEL
+        )
+        // Give the service a reference so it can push notifications to Dart
+        PocketLedgerNotificationService.methodChannel = notificationMethodChannel
 
-        // ─── Notification Listener Event Channel (push from native) ───
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "${NOTIFICATION_CHANNEL}_events")
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    PocketLedgerNotificationService.eventSink = events
+        notificationMethodChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isEnabled" -> {
+                    result.success(isNotificationListenerEnabled())
                 }
-                override fun onCancel(arguments: Any?) {
-                    PocketLedgerNotificationService.eventSink = null
+                "openSettings" -> {
+                    val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    startActivity(intent)
+                    result.success(null)
                 }
-            })
+                else -> result.notImplemented()
+            }
+        }
 
         // ─── SMS Reader Method Channel ───
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_CHANNEL)

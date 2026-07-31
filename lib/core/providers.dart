@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pocket_ledger/core/constants/app_constants.dart';
+import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/data/database/app_database.dart';
 import 'package:pocket_ledger/data/repositories/transaction_repository.dart';
 import 'package:pocket_ledger/data/repositories/account_repository.dart';
@@ -90,4 +93,36 @@ class MonthSummary {
     required this.balance,
     required this.transactions,
   });
+}
+
+// ─── Currency Provider ───
+final currencyProvider =
+    StateNotifierProvider<CurrencyNotifier, String>((ref) {
+  return CurrencyNotifier();
+});
+
+final currencySymbolProvider = Provider<String>((ref) {
+  final code = ref.watch(currencyProvider);
+  return CurrencyFormatter.symbolFor(code);
+});
+
+final currencyNameProvider = Provider<String>((ref) {
+  final code = ref.watch(currencyProvider);
+  return CurrencyFormatter.nameFor(code);
+});
+
+class CurrencyNotifier extends StateNotifier<String> {
+  CurrencyNotifier() : super(AppConstants.defaultCurrencyCode);
+
+  void init(String saved) {
+    state = saved;
+    CurrencyFormatter.setActiveCurrency(saved);
+  }
+
+  void setCurrency(String code) async {
+    state = code;
+    CurrencyFormatter.setActiveCurrency(code);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.keyCurrencyCode, code);
+  }
 }

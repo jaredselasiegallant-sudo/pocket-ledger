@@ -8,7 +8,7 @@ import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 
 /// Export Engine for generating Excel (.xlsx) and PDF statements
-/// All amounts are denominated in GH₵
+/// All amounts are denominated in the active currency
 class ExportEngine {
   ExportEngine._();
 
@@ -19,6 +19,8 @@ class ExportEngine {
   }) async {
     final excel = Excel.createExcel();
     final sheet = excel['Transactions'];
+
+    final currentSymbol = CurrencyFormatter.symbolFor(CurrencyFormatter.activeCode);
 
     // Header styling
     final headerStyle = CellStyle(
@@ -34,7 +36,7 @@ class ExportEngine {
       'Title',
       'Type',
       'Category',
-      'Amount (GH₵)',
+      'Amount ($currentSymbol)',
       'Provider',
       'Reference',
       'Notes',
@@ -165,6 +167,8 @@ class ExportEngine {
   }) async {
     final pdf = pw.Document();
 
+    final currentSymbol = CurrencyFormatter.symbolFor(CurrencyFormatter.activeCode);
+
     final green = PdfColor.fromHex('#006B3F');
     final lightGreen = PdfColor.fromHex('#F0FFF5');
     final gray = PdfColor.fromHex('#717971');
@@ -213,7 +217,7 @@ class ExportEngine {
                   style: pw.TextStyle(fontSize: 10, color: gray),
                 ),
                 pw.Text(
-                  'All amounts in GH₵',
+                  'All amounts in $currentSymbol',
                   style: pw.TextStyle(fontSize: 10, color: gray),
                 ),
               ],
@@ -274,7 +278,7 @@ class ExportEngine {
               2: pw.Alignment.center,
               3: pw.Alignment.centerRight,
             },
-            headers: ['Date', 'Description', 'Type', 'Amount (GH₵)'],
+            headers: ['Date', 'Description', 'Type', 'Amount ($currentSymbol)'],
             data: transactions.map((txn) {
               final amount = txn['amount'] ?? 0.0;
               final type = txn['type'] ?? '';

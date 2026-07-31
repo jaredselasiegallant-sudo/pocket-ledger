@@ -64,6 +64,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final currencySymbol = ref.watch(currencySymbolProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -103,6 +104,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
             _AmountInput(
               controller: _amountController,
               colorScheme: colorScheme,
+              currencySymbol: currencySymbol,
             ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05),
 
             const SizedBox(height: 24),
@@ -327,10 +329,12 @@ class _AmountInput extends StatelessWidget {
   const _AmountInput({
     required this.controller,
     required this.colorScheme,
+    required this.currencySymbol,
   });
 
   final TextEditingController controller;
   final ColorScheme colorScheme;
+  final String currencySymbol;
 
   @override
   Widget build(BuildContext context) {
@@ -344,7 +348,7 @@ class _AmountInput extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            AppConstants.defaultCurrencySymbol,
+            currencySymbol,
             style: AppTypography.headlineLarge.copyWith(
               color: colorScheme.primary,
               fontWeight: FontWeight.w800,

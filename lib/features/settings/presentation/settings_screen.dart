@@ -20,6 +20,8 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final themeMode = ref.watch(themeModeProvider);
+    final currencyCode = ref.watch(currencyProvider);
+    final currencyName = ref.watch(currencyNameProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -89,9 +91,8 @@ class SettingsScreen extends ConsumerWidget {
               _SettingsTile(
                 icon: Icons.attach_money_rounded,
                 title: 'Default Currency',
-                subtitle:
-                    '${AppConstants.defaultCurrencyName} (${AppConstants.defaultCurrencyCode})',
-                onTap: () {},
+                subtitle: '$currencyName ($currencyCode)',
+                onTap: () => _showCurrencyPicker(context, ref, currencyCode),
               ),
             ],
           ),
@@ -151,6 +152,90 @@ class SettingsScreen extends ConsumerWidget {
       type: 'debit',
       recipient: 'John Mensah',
       reference: 'MOMO123456789',
+    );
+  }
+
+  void _showCurrencyPicker(BuildContext context, WidgetRef ref, String currentCode) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Select Currency',
+              style: AppTypography.headlineSmall.copyWith(
+                color: Theme.of(ctx).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...AppConstants.supportedCurrencies.entries.map((entry) {
+              final code = entry.key;
+              final name = entry.value['name']!;
+              final symbol = entry.value['symbol']!;
+              final isSelected = code == currentCode;
+              return ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(ctx).colorScheme.primaryContainer
+                        : Theme.of(ctx).colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      symbol,
+                      style: AppTypography.titleMedium.copyWith(
+                        color: isSelected
+                            ? Theme.of(ctx).colorScheme.primary
+                            : Theme.of(ctx).colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                title: Text(
+                  name,
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(ctx).colorScheme.onSurface,
+                  ),
+                ),
+                subtitle: Text(
+                  code,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: isSelected
+                    ? Icon(Icons.check_circle_rounded,
+                        color: Theme.of(ctx).colorScheme.primary)
+                    : null,
+                onTap: () {
+                  ref.read(currencyProvider.notifier).setCurrency(code);
+                  Navigator.pop(ctx);
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 

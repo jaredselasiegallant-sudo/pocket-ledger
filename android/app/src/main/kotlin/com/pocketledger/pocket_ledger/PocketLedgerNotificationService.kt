@@ -1,27 +1,21 @@
 package com.pocketledger.pocket_ledger
 
 import android.app.Notification
-import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
 
 /**
  * PocketLedger NotificationListenerService
  *
- * Intercepts system notifications from Ghanaian mobile money and bank apps:
- * - MTN Mobile Money / MoMo
- * - Telecel Cash
- * - AT Money
- * - GCB, Ecobank, Fidelity, Stanbic, etc.
- *
- * Passes raw notification text to Flutter via EventChannel for local RegEx parsing.
- * No data leaves the device — 100% offline processing.
+ * Intercepts system notifications from Ghanaian mobile money and bank apps
+ * and forwards them to Flutter via MethodChannel for local RegEx parsing.
+ * 100% offline — no data leaves the device.
  */
 class PocketLedgerNotificationService : NotificationListenerService() {
 
     companion object {
-        var eventSink: EventChannel.EventSink? = null
+        var methodChannel: MethodChannel? = null
 
         // Known package names for Ghana MoMo and bank apps
         private val KNOWN_PACKAGES = setOf(
@@ -90,7 +84,6 @@ class PocketLedgerNotificationService : NotificationListenerService() {
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
         val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
-        val summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString() ?: ""
 
         return mapOf(
             "packageName" to sbn.packageName,
@@ -98,16 +91,13 @@ class PocketLedgerNotificationService : NotificationListenerService() {
             "text" to text,
             "bigText" to bigText,
             "subText" to subText,
-            "summaryText" to summaryText,
             "timestamp" to sbn.postTime,
-            "category" to notification.category,
-            "priority" to notification.priority,
         )
     }
 
     private fun sendToFlutter(data: Map<String, Any?>) {
         try {
-            eventSink?.success(data)
+            methodChannel?.invokeMethod("onNotificationPosted", data)
         } catch (e: Exception) {
             // Flutter engine may not be ready yet
             e.printStackTrace()

@@ -10,6 +10,17 @@ abstract final class AppConstants {
   static const String defaultCurrencySymbol = 'GH₵';
   static const String defaultCurrencyName = 'Ghana Cedi';
 
+  // ─── Supported Currencies ───
+  static const Map<String, Map<String, String>> supportedCurrencies = {
+    'GHS': {'symbol': 'GH₵', 'name': 'Ghana Cedi', 'locale': 'en_GH'},
+    'USD': {'symbol': '\$', 'name': 'US Dollar', 'locale': 'en_US'},
+    'EUR': {'symbol': '€', 'name': 'Euro', 'locale': 'de_DE'},
+    'GBP': {'symbol': '£', 'name': 'British Pound', 'locale': 'en_GB'},
+    'NGN': {'symbol': '₦', 'name': 'Nigerian Naira', 'locale': 'en_NG'},
+    'KES': {'symbol': 'KSh', 'name': 'Kenyan Shilling', 'locale': 'en_KE'},
+    'ZAR': {'symbol': 'R', 'name': 'South African Rand', 'locale': 'en_ZA'},
+  };
+
   // ─── Database ───
   static const String dbName = 'pocket_ledger.db';
   static const int dbVersion = 1;

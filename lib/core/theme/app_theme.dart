@@ -93,8 +93,8 @@ abstract final class AppTheme {
 
       // ─── Floating Action Button ───
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: colorScheme.onSurface,
-        foregroundColor: colorScheme.surface,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
@@ -136,7 +136,7 @@ abstract final class AppTheme {
         ),
       ),
 
-      // ─── Primary Button (Deep Navy) ───
+      // ─── Primary Button (Green) ───
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
@@ -155,7 +155,7 @@ abstract final class AppTheme {
       // ─── Filled Button ───
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: colorScheme.onTertiaryContainer,
+          backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

@@ -166,10 +166,12 @@ class BudgetScreen extends ConsumerWidget {
   }
 
   void _showCreateBudgetSheet(BuildContext context, WidgetRef ref) {
+    final currencySymbol = ref.read(currencySymbolProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => _CreateBudgetSheet(
+        currencySymbol: currencySymbol,
         onCreated: () {
           ref.invalidate(activeBudgetsProvider);
           ref.invalidate(totalBudgetProvider);
@@ -486,9 +488,10 @@ class _BudgetBadge extends StatelessWidget {
 }
 
 class _CreateBudgetSheet extends StatefulWidget {
-  const _CreateBudgetSheet({required this.onCreated});
+  const _CreateBudgetSheet({required this.onCreated, required this.currencySymbol});
 
   final VoidCallback onCreated;
+  final String currencySymbol;
 
   @override
   State<_CreateBudgetSheet> createState() => _CreateBudgetSheetState();
@@ -569,7 +572,7 @@ class _CreateBudgetSheetState extends State<_CreateBudgetSheet> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Budget Amount (${AppConstants.defaultCurrencySymbol})',
+                'Budget Amount (${widget.currencySymbol})',
                 style: AppTypography.labelLarge.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -583,7 +586,7 @@ class _CreateBudgetSheetState extends State<_CreateBudgetSheet> {
                 ),
                 decoration: InputDecoration(
                   hintText: '0.00',
-                  prefixText: '${AppConstants.defaultCurrencySymbol} ',
+                  prefixText: '${widget.currencySymbol} ',
                   prefixStyle: AppTypography.titleLarge.copyWith(
                     color: colorScheme.primary,
                   ),
@@ -669,7 +672,7 @@ class _CreateBudgetSheetState extends State<_CreateBudgetSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Budget created: $_selectedCategory - ${AppConstants.defaultCurrencySymbol} ${_amountController.text}',
+              'Budget created: $_selectedCategory - ${widget.currencySymbol} ${_amountController.text}',
             ),
             backgroundColor: AppColors.income,
             behavior: SnackBarBehavior.floating,

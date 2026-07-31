@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pocket_ledger/core/theme/app_theme.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/providers.dart';
+import 'package:pocket_ledger/core/utils/currency_formatter.dart';
 import 'package:pocket_ledger/data/database/app_database.dart';
 import 'package:pocket_ledger/features/splash/presentation/splash_screen.dart';
 
@@ -12,22 +13,28 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final savedTheme = prefs.getString(AppConstants.keyThemeMode);
+  final savedCurrency = prefs.getString(AppConstants.keyCurrencyCode);
 
   ThemeMode initialTheme = ThemeMode.system;
   if (savedTheme == 'light') initialTheme = ThemeMode.light;
   if (savedTheme == 'dark') initialTheme = ThemeMode.dark;
+
+  final initialCurrency = savedCurrency ?? AppConstants.defaultCurrencyCode;
+  CurrencyFormatter.setActiveCurrency(initialCurrency);
 
   // Initialize database eagerly
   final db = AppDatabase();
   await db.customSelect('SELECT 1').get();
 
   final themeModeNotifier = ThemeModeNotifier()..init(initialTheme);
+  final currencyNotifier = CurrencyNotifier()..init(initialCurrency);
 
   runApp(
     ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
         themeModeProvider.overrideWith((ref) => themeModeNotifier),
+        currencyProvider.overrideWith((ref) => currencyNotifier),
       ],
       child: const PocketLedgerApp(),
     ),

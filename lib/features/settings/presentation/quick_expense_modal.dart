@@ -113,7 +113,7 @@ class _QuickExpenseModalState extends State<QuickExpenseModal> {
               ),
               decoration: InputDecoration(
                 hintText: '0.00',
-                prefixText: 'GH₵ ',
+                prefixText: '${CurrencyFormatter.symbolFor(CurrencyFormatter.activeCode)} ',
                 prefixStyle: AppTypography.headlineMedium.copyWith(
                   color: colorScheme.primary,
                   fontWeight: FontWeight.w800,

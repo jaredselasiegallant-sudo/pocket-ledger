@@ -17,20 +17,20 @@ abstract final class AppColors {
   static const Color lightInverseSurface = Color(0xFF2D3133);
   static const Color lightInverseOnSurface = Color(0xFFEFF1F3);
 
-  static const Color lightPrimary = Color(0xFF000000);
+  static const Color lightPrimary = Color(0xFF009668);
   static const Color lightOnPrimary = Color(0xFFFFFFFF);
-  static const Color lightPrimaryContainer = Color(0xFF131B2E);
-  static const Color lightOnPrimaryContainer = Color(0xFF7C839B);
+  static const Color lightPrimaryContainer = Color(0xFFD4F5E5);
+  static const Color lightOnPrimaryContainer = Color(0xFF003D26);
 
   static const Color lightSecondary = Color(0xFF515F74);
   static const Color lightOnSecondary = Color(0xFFFFFFFF);
   static const Color lightSecondaryContainer = Color(0xFFD5E3FD);
   static const Color lightOnSecondaryContainer = Color(0xFF57657B);
 
-  static const Color lightTertiary = Color(0xFF000000);
+  static const Color lightTertiary = Color(0xFF131B2E);
   static const Color lightOnTertiary = Color(0xFFFFFFFF);
-  static const Color lightTertiaryContainer = Color(0xFF002113);
-  static const Color lightOnTertiaryContainer = Color(0xFF009668);
+  static const Color lightTertiaryContainer = Color(0xFFE8EAF0);
+  static const Color lightOnTertiaryContainer = Color(0xFF131B2E);
 
   static const Color lightError = Color(0xFFBA1A1A);
   static const Color lightOnError = Color(0xFFFFFFFF);
