@@ -7,12 +7,15 @@ import 'package:pocket_ledger/core/theme/colors/app_colors.dart';
 import 'package:pocket_ledger/core/theme/typography/app_typography.dart';
 import 'package:pocket_ledger/core/constants/app_constants.dart';
 import 'package:pocket_ledger/core/providers.dart';
+import 'package:pocket_ledger/data/database/app_database.dart';
 
-/// Full Add Transaction Screen
+/// Full Add/Edit Transaction Screen
 /// Supports credit, debit, and transfer with category picker,
 /// account selector, date picker, and notes
 class AddTransactionScreen extends ConsumerStatefulWidget {
-  const AddTransactionScreen({super.key});
+  final Transaction? existingTransaction;
+
+  const AddTransactionScreen({super.key, this.existingTransaction});
 
   @override
   ConsumerState<AddTransactionScreen> createState() =>
@@ -49,6 +52,30 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
+
+    // Pre-fill form for editing
+    final txn = widget.existingTransaction;
+    if (txn != null) {
+      _amountController.text = txn.amount.abs().toStringAsFixed(2);
+      _titleController.text = txn.title;
+      _selectedCategory = txn.category;
+      _selectedAccount = txn.vendor ?? txn.provider ?? 'MTN MoMo';
+      _selectedDate = txn.transactionDate;
+      _notesController.text = txn.description ?? '';
+
+      // Set tab to match transaction type
+      switch (txn.type) {
+        case 'debit':
+          _tabController.index = 0;
+          break;
+        case 'credit':
+          _tabController.index = 1;
+          break;
+        case 'transfer':
+          _tabController.index = 2;
+          break;
+      }
+    }
   }
 
   @override
@@ -73,7 +100,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'New Transaction',
+          widget.existingTransaction != null ? 'Edit Transaction' : 'New Transaction',
           style: AppTypography.titleLarge.copyWith(
             color: colorScheme.onSurface,
           ),
@@ -270,23 +297,43 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
 
     try {
       final txRepo = ref.read(transactionRepositoryProvider);
-      await txRepo.addTransaction(
-        title: _titleController.text.isNotEmpty
-            ? _titleController.text
-            : _getSaveButtonText(),
-        amount: amount,
-        type: _getTransactionType(),
-        category: _selectedCategory,
-        vendor: _selectedAccount,
-        account: _selectedAccount,
-        description: _notesController.text.isNotEmpty ? _notesController.text : null,
-        transactionDate: _selectedDate,
-      );
+      final existing = widget.existingTransaction;
 
-      // Record spending in budget if it's an expense
-      if (_getTransactionType() == 'debit') {
-        final budgetRepo = ref.read(budgetRepositoryProvider);
-        await budgetRepo.recordSpending(_selectedCategory, amount);
+      if (existing != null) {
+        // Update existing transaction
+        await txRepo.updateTransaction(
+          id: existing.id,
+          title: _titleController.text.isNotEmpty
+              ? _titleController.text
+              : _getSaveButtonText(),
+          amount: amount,
+          type: _getTransactionType(),
+          category: _selectedCategory,
+          vendor: _selectedAccount,
+          account: _selectedAccount,
+          description: _notesController.text.isNotEmpty ? _notesController.text : null,
+          transactionDate: _selectedDate,
+        );
+      } else {
+        // Add new transaction
+        await txRepo.addTransaction(
+          title: _titleController.text.isNotEmpty
+              ? _titleController.text
+              : _getSaveButtonText(),
+          amount: amount,
+          type: _getTransactionType(),
+          category: _selectedCategory,
+          vendor: _selectedAccount,
+          account: _selectedAccount,
+          description: _notesController.text.isNotEmpty ? _notesController.text : null,
+          transactionDate: _selectedDate,
+        );
+
+        // Record spending in budget if it's an expense
+        if (_getTransactionType() == 'debit') {
+          final budgetRepo = ref.read(budgetRepositoryProvider);
+          await budgetRepo.recordSpending(_selectedCategory, amount);
+        }
       }
 
       // Refresh data
@@ -299,7 +346,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${_getSaveButtonText()}: ${_amountController.text} - $_selectedCategory',
+              existing != null ? 'Transaction updated' : '${_getSaveButtonText()}: ${_amountController.text}',
             ),
             backgroundColor: AppColors.income,
             behavior: SnackBarBehavior.floating,

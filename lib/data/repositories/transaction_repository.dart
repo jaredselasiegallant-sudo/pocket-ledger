@@ -120,6 +120,34 @@ class TransactionRepository {
     return _dao.softDeleteTransaction(id);
   }
 
+  /// Update an existing transaction
+  Future<bool> updateTransaction({
+    required int id,
+    required String title,
+    required double amount,
+    required String type,
+    required String category,
+    String? vendor,
+    String? account,
+    String? description,
+    DateTime? transactionDate,
+  }) async {
+    return _dao.updateTransaction(
+      TransactionsCompanion(
+        id: Value(id),
+        title: Value(title),
+        amount: Value(amount),
+        type: Value(type),
+        category: Value(category),
+        vendor: vendor != null ? Value(vendor) : const Value.absent(),
+        account: account != null ? Value(account) : const Value.absent(),
+        description: description != null ? Value(description) : const Value.absent(),
+        transactionDate: Value(transactionDate ?? DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   String _generateTitle(ParsedTransaction parsed) {
     if (parsed.type == TransactionType.credit) {
       return 'Received from ${parsed.sender ?? parsed.provider}';

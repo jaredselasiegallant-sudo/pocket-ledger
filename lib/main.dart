@@ -47,6 +47,12 @@ void main() async {
   // Subscribe to real-time transaction stream — auto-import to DB
   final txRepo = TransactionRepository(db);
   autoCaptureService.onTransactionCaptured.listen((parsed) async {
+    // Skip unknown type — can't reliably categorize
+    if (parsed.type == TransactionType.unknown) {
+      developer.log('Skipping unknown type: ${parsed.rawText.substring(0, 50.clamp(0, parsed.rawText.length))}',
+          name: 'PocketLedger');
+      return;
+    }
     // Only import transactions from install date onwards
     if (parsed.timestamp.isBefore(installDate)) {
       developer.log('Skipping pre-install transaction: ${parsed.formattedAmount}', name: 'PocketLedger');

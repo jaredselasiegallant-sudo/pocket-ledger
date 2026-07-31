@@ -2,7 +2,7 @@
 abstract final class AppConstants {
   // ─── App Info ───
   static const String appName = 'PocketLedger';
-  static const String appVersion = '1.2.1';
+  static const String appVersion = '1.2.4';
   static const String appBuildNumber = '1';
 
   // ─── Default Currency ───

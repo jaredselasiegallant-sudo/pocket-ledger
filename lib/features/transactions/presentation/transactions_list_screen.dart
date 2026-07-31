@@ -157,9 +157,17 @@ class _TransactionsListScreenState
                           ],
                         ),
                       )
-                    : _TransactionList(
+                    :               _TransactionList(
                         transactions: filtered,
                         colorScheme: colorScheme,
+                        onTap: (txn) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AddTransactionScreen(existingTransaction: txn),
+                            ),
+                          );
+                        },
                         onDelete: (txn) async {
                           await ref
                               .read(transactionRepositoryProvider)
@@ -276,11 +284,13 @@ class _TransactionList extends StatelessWidget {
   const _TransactionList({
     required this.transactions,
     required this.colorScheme,
+    required this.onTap,
     required this.onDelete,
   });
 
   final List<Transaction> transactions;
   final ColorScheme colorScheme;
+  final ValueChanged<Transaction> onTap;
   final ValueChanged<Transaction> onDelete;
 
   @override
@@ -343,8 +353,11 @@ class _TransactionList extends StatelessWidget {
                     );
                   },
                   onDismissed: (_) => onDelete(txn),
-                  child: _TransactionTile(
-                      transaction: txn, colorScheme: colorScheme),
+                  child: GestureDetector(
+                    onTap: () => onTap(txn),
+                    child: _TransactionTile(
+                        transaction: txn, colorScheme: colorScheme),
+                  ),
                 )),
           ],
         );

@@ -83,7 +83,7 @@ class UpdateService {
     );
   }
 
-  /// Download the update asset to the app's temp directory.
+  /// Download the update asset to the app's cache directory.
   static Future<File?> downloadUpdate(
     String downloadUrl,
     String fileName,
@@ -91,7 +91,11 @@ class UpdateService {
   ) async {
     try {
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/$fileName');
+      final updatesDir = Directory('${dir.path}/updates');
+      if (!await updatesDir.exists()) {
+        await updatesDir.create(recursive: true);
+      }
+      final file = File('${updatesDir.path}/$fileName');
 
       final request = http.Request('GET', Uri.parse(downloadUrl));
       final response = await http.Client().send(request);
@@ -124,11 +128,16 @@ class UpdateService {
     }
   }
 
-  /// Open the downloaded file or directory for manual install.
+  /// Open the downloaded file for install.
+  /// On Android, opens the file with the system installer.
   static Future<void> openUpdateFile(File file) async {
-    final uri = Uri.file(file.path);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      final uri = Uri.file(file.path);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      developer.log('Failed to open update file: $e', name: 'UpdateService');
     }
   }
 
