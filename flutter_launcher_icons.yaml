@@ -7,16 +7,16 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/icons/app_icon_source.png"
     image_size: 512
-    background_color: "#FFFFFF"
-    theme_color: "#009668"
+    background_color: "#F7F9FB"
+    theme_color: "#6C3FC5"
   windows:
     generate: true
     image_path: "assets/icons/app_icon_source.png"
     icon_size: 48
-    background_color: "#FFFFFF"
+    background_color: "#F7F9FB"
 
   adaptive_icon_enabled: true
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: "#F7F9FB"
   adaptive_icon_foreground: "assets/icons/app_icon_source.png"
 
   min_sdk_android: 21
