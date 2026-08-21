@@ -54,10 +54,10 @@ jobs:
           cd artifacts/windows-build
           7z a -tzip ../../PocketLedger-Windows.zip .
 
-      - name: Rename Android files
+      - name: Find and Rename Android files
         run: |
-          mv artifacts/android-builds/app-release.apk artifacts/PocketLedger.apk
-          mv artifacts/android-builds/app-release.aab artifacts/PocketLedger.aab
+          find artifacts/android-builds -name "app-release.apk" -exec mv {} artifacts/PocketLedger.apk \;
+          find artifacts/android-builds -name "app-release.aab" -exec mv {} artifacts/PocketLedger.aab \;
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
