@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.pocketledger.pocket_ledger"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
