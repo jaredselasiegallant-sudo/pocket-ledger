@@ -1,0 +1,94 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - run: flutter build appbundle --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-builds
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/x64/runner/Release/
+
+  release:
+    needs: [build-android, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package Windows
+        run: |
+          cd artifacts/windows-build
+          7z a -tzip ../../PocketLedger-Windows.zip .
+
+      - name: Rename Android files
+        run: |
+          mv artifacts/android-builds/app-release.apk artifacts/PocketLedger.apk
+          mv artifacts/android-builds/app-release.aab artifacts/PocketLedger.aab
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "PocketLedger ${{ github.ref_name }}"
+          body: |
+            ## PocketLedger ${{ github.ref_name }}
+
+            Offline-first personal finance tracker with Ghana Cedi (GHS) as default currency.
+
+            ### Downloads
+            - **Android APK** — `PocketLedger.apk` — Install directly on Android
+            - **Android AAB** — `PocketLedger.aab` — Upload to Google Play Console
+            - **Windows** — `PocketLedger-Windows.zip` — Extract and run `pocket_ledger.exe`
+
+            ### Features
+            - Dashboard with real-time balance, income/expenses
+            - Transaction list with period/type filters and search
+            - Add expenses, income, transfers with categories and accounts
+            - Budget tracking with category progress bars
+            - Reports with pie, bar, and line charts
+            - Quick Log (Alt+Space) for rapid expense entry
+            - Auto-Capture from SMS/notifications (MTN MoMo, Telecel, GCB, etc.)
+            - Excel and PDF export
+            - Dark mode with Material 3 Expressive design
+            - Offline-first — all data on device via SQLite
+
+            ### Tech Stack
+            Flutter 3.44 | Riverpod | Drift (SQLite) | fl_chart | Material 3
+          files: |
+            artifacts/PocketLedger.apk
+            artifacts/PocketLedger.aab
+            PocketLedger-Windows.zip
